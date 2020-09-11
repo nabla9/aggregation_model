@@ -3,24 +3,20 @@ from numpy import array, cumsum, zeros, triu
 
 
 def create_block_model(comm_list, prob_array, *, symmetric=True):
-    prob_array = [list(row) for row in prob_array]
     comm_idx = cumsum(comm_list)
     n_nodes = comm_idx[-1]
-    adj_matr = zeros([n_nodes, n_nodes])
+    adj = zeros([n_nodes, n_nodes])
 
-    last_row = 0
-    last_col = 0
-    for row_idx in comm_idx:
-        p_list = prob_array.pop(0)
-        for col_idx in comm_idx:
-            p_conn = p_list.pop(0)
-            if col_idx < row_idx:
-                last_col = col_idx
+    for r_idx, r in enumerate(comm_idx):
+        for c_idx, c in enumerate(comm_idx):
+            p_conn = prob_array[r_idx][c_idx]
+            if c < r:
                 continue
-            adj_matr[last_row:row_idx, last_col:col_idx] = choice([0, 1], [row_idx - last_row, col_idx - last_col], p=[1 - p_conn, p_conn])
-            last_col = col_idx
-        last_row = row_idx
+            else:
+                rl = comm_idx[r_idx-1] if r_idx != 0 else 0
+                cl = comm_idx[c_idx-1] if c_idx != 0 else 0
+                adj[rl:r, cl:c] = choice([0, 1], [r - rl, c - cl], p=[1 - p_conn, p_conn])
 
-    adj_matr = triu(adj_matr, 1)
-    adj_matr += adj_matr.transpose()
-    return adj_matr
+    adj = triu(adj, 1)
+    adj += adj.transpose()
+    return adj
