@@ -20,6 +20,7 @@ def create_block_model(comm_list, prob_array):
     --------------
     The graph generated here naturally "hard codes" community structure -- groups where the density of edges between
     members can differ significantly from the density of links with non-members.
+
     """
     comm_idx = cumsum(comm_list)
     n_nodes = comm_idx[-1]
@@ -31,11 +32,21 @@ def create_block_model(comm_list, prob_array):
             if c < r:
                 continue
             else:
-                rl = comm_idx[r_idx-1] if r_idx != 0 else 0
-                cl = comm_idx[c_idx-1] if c_idx != 0 else 0
+                rl = comm_idx[r_idx - 1] if r_idx != 0 else 0
+                cl = comm_idx[c_idx - 1] if c_idx != 0 else 0
                 adj[rl:r, cl:c] = choice([0, 1], [r - rl, c - cl], p=[1 - p_conn, p_conn])
 
     # Zero sampled entries below/including the main diagonal and add transpose to fill in the rest
     adj = triu(adj, 1)
     adj += adj.transpose()
     return adj
+
+
+class SBMGraph:
+    def __init__(self, comm_list, prob_array):
+        self._com = comm_list
+        self._prob = prob_array
+        self._adj = create_block_model(comm_list, prob_array)
+
+    def __getitem__(self, item):
+        return self._adj[item]
