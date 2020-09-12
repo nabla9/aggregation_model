@@ -43,6 +43,11 @@ def create_block_model(comm_list, prob_array):
 
 
 class SBMGraph:
+    """
+    A wrapper for a graph structure (adjacency matrix).
+
+    Can be indexed like a normal array and holds its generating information.
+    """
     def __init__(self, comm_list, prob_array):
         self._com = comm_list
         self._prob = prob_array
@@ -50,3 +55,6 @@ class SBMGraph:
 
     def __getitem__(self, item):
         return self._adj[item]
+
+    def __repr__(self):
+        return str(self._adj)
