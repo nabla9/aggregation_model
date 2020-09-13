@@ -17,9 +17,8 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
         raise IndexError('Adjacency matrix is not square')
 
     n = graph.shape[0]
-    X0 = np.array([inits]).astype('float')  # TODO: check this
+    X0 = np.array([inits]).astype('float')
     X = X0.copy()
-    # df = pd.DataFrame([inits], index=['t=0'])  # TODO: use ndarrays here instead, DataFrame to pass data after
     times = np.linspace(0, final, steps)
     h = times[1] - times[0]
 
@@ -35,7 +34,10 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
 
     for _ in times:
         (MX1, MX2) = np.meshgrid(X0, X0)
-        dX = np.sum((1/n)*F(np.abs(MX1-MX2))*compute_direction(MX1, MX2).astype('float'), axis=0)  # TODO: fix
+        dX_int = (1/n)*F(np.abs(MX1-MX2))*(MX1-MX2)/np.abs(MX1-MX2)  # not great, this throws error now
+        for idx in range(n):
+            dX_int[idx, idx] = 0
+        dX = np.sum(dX_int, axis=0)
         X0 += h*dX
         X = np.append(X, X0, axis=0)
 
@@ -43,6 +45,6 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
 
 
 if __name__ == '__main__':
-    graph = np.ones([10, 10])
-    inits = np.arange(10)
-    X = odesolver(graph, inits, a=0.5, b=0)
+    A = np.ones([10, 10])
+    init = np.arange(10)
+    sol = odesolver(A, init, a=0.5, b=0)
