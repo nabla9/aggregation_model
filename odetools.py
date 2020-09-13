@@ -13,13 +13,35 @@ def is_square(mat):
 
 
 def odesolver(graph, inits, *, steps=1000, final=100, a, b):
+    """
+    Solves the aggregation equations with a prescribed interaction function and network structure.
+
+    :param SBMGraph graph: A stochastic block object (in block_model.py)
+    :param list inits: Initial conditions. Must match with the row/col dim of GRAPH.
+    :param int steps: Number of fixed-width time steps taken.
+    :param int final: System of ODEs evolved to this point.
+    :param float a: One parameter in kernel defined below.
+    :param float b: as above.
+    :return SolutionWrapper: An object (defined in plottools.py) that wraps the solution data with input parameters and
+                            some useful methods. Refer to plottools.SolutionWrapper for more.
+
+    Implementation
+    --------------
+    Equations are evolved via forward Euler with a fixed time step. Kernel function as defined in von Brecht et al.
+    (2013).
+
+    In Progress
+    -----------
+    * TODO: Allow an adaptive time step with a tolerance mechanism for convergence.
+    * TODO: Generalize code to extend to n>=2 dimensions.
+    """
     if not is_undirected(graph):
         raise NotImplementedError('Graph is directed')
     if not is_square(graph):
         raise IndexError('Adjacency matrix is not square')
 
     n = graph.shape[0]
-    X0 = np.array([inits]).astype('float')
+    X0 = np.array([inits]).astype('float')  # to be safe, casting error below if this were 'int'
     X = X0.copy()
     times = np.linspace(0, final, steps)
     h = times[1] - times[0]
