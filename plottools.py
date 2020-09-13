@@ -14,6 +14,7 @@ class SolutionWrapper:
     * TODO: look into letting odetools pass a dictionary itself instead of tons of pargs.
     * TODO: create method for plotting COM and individual state data over time
     * TODO: store simulated data in a dataframe with labels rather than an ndarray.
+    * TODO: write a custom pickler method for saving runs
     """
     def __init__(self, graph_obj, inits, steps, final, a, b, state_data):
         self.inputs = {'graph': graph_obj, 'inits': inits, 'odeparams':
