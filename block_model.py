@@ -58,3 +58,7 @@ class SBMGraph:
 
     def __repr__(self):
         return str(self._adj)
+
+    def get_communities(self):
+        return tuple(self._com)
+    comms = property(get_communities)
