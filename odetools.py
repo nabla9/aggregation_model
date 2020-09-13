@@ -69,9 +69,9 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
 
 
 if __name__ == '__main__':
-    C = [50, 50]
+    C = [250, 250]
     prob_array = 0.5*np.ones([2, 2])
     grp = block_model.SBMGraph(C, prob_array)
 
-    init = np.arange(100)/100
+    init = np.arange(500)/100
     sol = odesolver(grp, init, a=0.5, b=0)
