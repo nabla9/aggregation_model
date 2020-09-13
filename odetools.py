@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import plottools
+import block_model
 
 
 def is_undirected(graph):
@@ -41,10 +43,13 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
         X0 += h*dX
         X = np.append(X, X0, axis=0)
 
-    return X
+    return plottools.SolutionWrapper(graph, inits, steps, final, a, b, X)
 
 
 if __name__ == '__main__':
-    A = np.ones([10, 10])
-    init = np.arange(10)
-    sol = odesolver(A, init, a=0.5, b=0)
+    C = [50, 50]
+    prob_array = 0.5*np.ones([2, 2])
+    grp = block_model.SBMGraph(C, prob_array)
+
+    init = np.arange(100)/100
+    sol = odesolver(grp, init, a=0.5, b=0)
