@@ -39,12 +39,19 @@ class SolutionWrapper:
                              title='individual state data')
         comms = self.inputs['graph'].comms
 
-        def plot_comm(axes, k):
+        def plot_comm(axes, k, col):
             comm_bds = np.cumsum(comms)
             idx_lower = comm_bds[k-1] if k > 0 else 0
-            ax.plot(self.output[:, idx_lower:comm_bds[k]])
+            ax.plot(self.output[:, idx_lower:comm_bds[k]], color=col)
 
+            lines = ax.get_lines()
+            a_line = lines[idx_lower]
+            a_line.set_label('community %s' % k)  # Set only one label in legend per community
+
+        cmap = plt.get_cmap('jet')
+        col_list = np.linspace(0, 256, len(comms))  # Choose community colors far apart on cmap
         for com in range(len(comms)):
-            plot_comm(ax, com)
+            plot_comm(ax, com, cmap(col_list[com]))
 
+        fig.legend()
         return fig
