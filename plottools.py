@@ -13,7 +13,6 @@ class SolutionWrapper:
     In Progress
     -----------
     * TODO: look into letting odetools pass a dictionary itself instead of tons of pargs.
-    * TODO: create method for plotting COM and individual state data over time
     * TODO: store simulated data in a dataframe with labels rather than an ndarray.
     * TODO: write a custom pickler method for saving runs
     """
@@ -40,6 +39,19 @@ class SolutionWrapper:
         comms = self.inputs['graph'].comms
 
         def plot_comm(axes, k, col):
+            """
+            A plotting method for state data **by community**.
+
+            This method separates and color codes individuals by community and provides appropriate legend labels.
+
+            :param AxesSubplot axes: a figure axes handle to plot into.
+            :param int k: a community index.
+            :param Union[str, list] col: a color, can either be a name or an RGBA list.
+
+            In Progress
+            -----------
+            * TODO: create an option to plot community centers of mass over time.
+            """
             comm_bds = np.cumsum(comms)
             idx_lower = comm_bds[k-1] if k > 0 else 0
             ax.plot(self.output[:, idx_lower:comm_bds[k]], color=col)
