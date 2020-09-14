@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class SolutionWrapper:
@@ -31,3 +32,19 @@ class SolutionWrapper:
             M = m_i if idx == 0 else np.append(M, m_i, axis=1)
 
         return M
+
+    def plot_state(self):
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, xlabel='time', ylabel='position',
+                             title='individual state data')
+        comms = self.inputs['graph'].comms
+
+        def plot_comm(axes, k):
+            comm_bds = np.cumsum(comms)
+            idx_lower = comm_bds[k-1] if k > 0 else 0
+            ax.plot(self.output[:, idx_lower:comm_bds[k]])
+
+        for com in range(len(comms)):
+            plot_comm(ax, com)
+
+        return fig
