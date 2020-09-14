@@ -62,6 +62,10 @@ class SBMGraph:
     def __getattr__(self, name):
         return getattr(self._adj, name)
 
-    def get_communities(self):
+    @property
+    def adj(self):
+        return self._adj
+
+    @property
+    def comms(self):
         return tuple(self._com)
-    comms = property(get_communities)

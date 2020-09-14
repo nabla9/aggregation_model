@@ -35,10 +35,13 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
     * TODO: Allow an adaptive time step with a tolerance mechanism for convergence.
     * TODO: Generalize code to extend to n>=2 dimensions.
     """
+    inits = inits.reshape(-1)
     if not is_undirected(graph):
         raise NotImplementedError('Graph is directed')
     if not is_square(graph):
         raise IndexError('Adjacency matrix is not square')
+    if graph.shape[0] != inits.shape[0]:
+        raise IndexError('Dim mismatch: initial conditions')
 
     n = graph.shape[0]
     X0 = np.array([inits]).astype('float')  # to be safe, casting error below if this were 'int'
@@ -58,7 +61,7 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
 
     for _ in times:
         (MX1, MX2) = np.meshgrid(X0, X0)
-        dX_int = (1/n)*F(np.abs(MX1-MX2))*(MX1-MX2)/np.abs(MX1-MX2)  # not great, this throws error now
+        dX_int = (1/n)*F(np.abs(MX1-MX2))*((MX1-MX2)/np.abs(MX1-MX2))*graph.adj  # not great, this throws error now
         for idx in range(n):
             dX_int[idx, idx] = 0
         dX = np.sum(dX_int, axis=0)
@@ -70,8 +73,11 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
 
 if __name__ == '__main__':
     C = [250, 250]
-    prob_array = 0.5*np.ones([2, 2])
+    prob_array = np.array([[0.8, 0.05], [0.05, 0.8]])
     grp = block_model.SBMGraph(C, prob_array)
 
-    init = np.arange(500)/100
+    com1 = -10 + np.random.rand(250)/10
+    com2 = 10 + np.random.rand(250)/10
+    init = np.append(com1, com2)
+    # init = np.arange(500)/100
     sol = odesolver(grp, init, a=0.5, b=0)
