@@ -54,16 +54,21 @@ class SolutionWrapper:
             """
             comm_bds = np.cumsum(comms)
             idx_lower = comm_bds[k-1] if k > 0 else 0
-            ax.plot(self.output[:, idx_lower:comm_bds[k]], color=col)
+            axes.plot(self.output[:, idx_lower:comm_bds[k]], color=col)
 
-            lines = ax.get_lines()
-            a_line = lines[idx_lower]
+            lines = axes.get_lines()
+            a_line = lines[-1]
             a_line.set_label('community %s' % k)  # Set only one label in legend per community
 
+        # Color code communities, pick colors far apart on cmap
         cmap = plt.get_cmap('jet')
-        col_list = np.linspace(0, 256, len(comms))  # Choose community colors far apart on cmap
+        col_list = np.linspace(0, 256, len(comms))
+        # Compute COMs and plot with state data
+        center_array = self.compute_center()
         for com in range(len(comms)):
             plot_comm(ax, com, cmap(col_list[com]))
+            ax.plot(center_array[:, com], '--k')
+        ax.get_lines()[-1].set_label('COM')
 
         fig.legend()
         return fig
