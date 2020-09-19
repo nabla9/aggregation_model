@@ -4,12 +4,25 @@ import plottools
 import block_model
 
 
+# Sanity checks for graph inputs
 def is_undirected(graph):
     return True if np.abs((graph - graph.T)).sum() == 0 else False
 
 
 def is_square(mat):
     return True if mat.ndim == 2 and mat.shape[0] == mat.shape[1] else False
+
+
+def generate_inits(graph, *, sep=100, noise='uniform', scale=10):  # do we actually need length here?
+    noise_dict = {'uniform': (lambda l: np.random.rand(l)-1/2)}
+    n_comms = len(graph.comms)
+    n_nodes = np.sum(graph.comms)
+
+    # generate inits spaced 'sep' apart by community, centered about 0, with noise
+    inits = (np.array([pos for pos in range(n_comms) for times in range(graph.comms[pos])])*sep).astype('float')
+    inits += noise_dict[noise](n_nodes)*scale
+    inits -= inits.mean()
+    return inits
 
 
 def odesolver(graph, inits, *, steps=1000, final=100, a, b):
@@ -51,12 +64,15 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
 
     def make_kernel(p1, p2):
         def kernel(r):
-            return np.minimum(p1*r+p2, 1-r)
+            return np.minimum(p1 * r + p2, 1 - r)
+
         return kernel
+
     F = make_kernel(a, b)
 
     def compute_direction(x1, x2):  # TODO: generalize to n-d
         return 1 if x1 >= x2 else -1
+
     compute_direction = np.frompyfunc(compute_direction, 2, 1)
 
     for _ in times:
@@ -65,19 +81,16 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
         for idx in range(n):
             dX_int[idx, idx] = 0
         dX = np.sum(dX_int, axis=0)
-        X0 += h*dX
+        X0 += h * dX
         X = np.append(X, X0, axis=0)
 
     return plottools.SolutionWrapper(graph, inits, steps, final, a, b, X)
 
 
 if __name__ == '__main__':
-    C = [250, 250]
-    prob_array = np.array([[0.8, 0.05], [0.05, 0.8]])
+    C = [500, 500]
+    prob_array = np.array([[0.75, 0.15], [0.15, 0.75]])
     grp = block_model.SBMGraph(C, prob_array)
 
-    com1 = -10 + np.random.rand(250)/10
-    com2 = 10 + np.random.rand(250)/10
-    init = np.append(com1, com2)
-    # init = np.arange(500)/100
+    init = generate_inits(grp)
     sol = odesolver(grp, init, a=0.5, b=0)
