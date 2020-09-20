@@ -78,14 +78,17 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
 
     compute_direction = np.frompyfunc(compute_direction, 2, 1)
 
+    def take_step(pos, step):
+        (MX1, MX2) = np.meshgrid(pos, pos)
+        dpos_int = (1/n)*F(np.abs(MX1-MX2))*((MX1-MX2)/np.abs(MX1-MX2))*graph.adj  # not great, this throws error now
+        for idx in range(n):
+            dpos_int[idx, idx] = 0
+        dpos = np.sum(dpos_int, axis=0)
+        return pos + step * dpos
+
     if adaptive is False:
         for _ in times:
-            (MX1, MX2) = np.meshgrid(X0, X0)
-            dX_int = (1/n)*F(np.abs(MX1-MX2))*((MX1-MX2)/np.abs(MX1-MX2))*graph.adj  # not great, this throws error now
-            for idx in range(n):
-                dX_int[idx, idx] = 0
-            dX = np.sum(dX_int, axis=0)
-            X0 += h * dX
+            X0 = take_step(X0, h)
             X = np.append(X, X0, axis=0)
 
     else:
@@ -93,20 +96,9 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
         h = 1
         times = [0]
         while t < final:
-            (MX1, MX2) = np.meshgrid(X0, X0)
-            dX_int = (1/n)*F(np.abs(MX1-MX2))*((MX1-MX2)/np.abs(MX1-MX2))*graph.adj  # not great, this throws error now
-            for idx in range(n):
-                dX_int[idx, idx] = 0
-            dX = np.sum(dX_int, axis=0)
-            X1_full = X0 + h * dX
-
-            Xh = X0 + (h/2) * dX
-            (MX1, MX2) = np.meshgrid(Xh, Xh)
-            dX_int = (1/n)*F(np.abs(MX1-MX2))*((MX1-MX2)/np.abs(MX1-MX2))*graph.adj  # not great, this throws error now
-            for idx in range(n):
-                dX_int[idx, idx] = 0
-            dX = np.sum(dX_int, axis=0)
-            X1_half = Xh + (h/2) * dX
+            X1_full = take_step(X0, h)
+            Xh = (X1_full + X0)/2  # this is probably bad, should return X0 + (h/2)*dX instead, ideally
+            X1_half = take_step(Xh, h/2)
 
             tau = X1_half - X1_full
             conv_norm = np.max(np.abs(tau))
@@ -115,7 +107,7 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
                 t = times[-1]+h
                 times.append(t)
                 X = np.append(X, X0, axis=0)
-            h *= 0.9*np.sqrt(tol/conv_norm)
+            h *= 0.9 * np.sqrt(tol / conv_norm)
 
     return plottools.SolutionWrapper(graph, inits, steps, final, a, b, X)  # TODO: this should return times, not steps
 
