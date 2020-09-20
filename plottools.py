@@ -14,11 +14,9 @@ class SolutionWrapper:
     -----------
     * TODO: look into letting odetools pass a dictionary itself instead of tons of pargs.
     * TODO: store simulated data in a dataframe with labels rather than an ndarray.
-    * TODO: write a custom pickler method for saving runs
     """
-    def __init__(self, graph_obj, inits, steps, final, a, b, state_data):
-        self.inputs = {'graph': graph_obj, 'inits': inits, 'odeparams':
-                       {'a': a, 'b': b, 'steps': steps, 'final': final}}
+    def __init__(self, params_dict, state_data):
+        self.inputs = params_dict
         self.output = state_data
 
     def compute_center(self):

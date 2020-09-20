@@ -109,7 +109,8 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
                 X = np.append(X, X0, axis=0)
             h *= 0.9 * np.sqrt(tol / conv_norm)
 
-    return plottools.SolutionWrapper(graph, inits, steps, final, a, b, X)  # TODO: this should return times, not steps
+    params_dict = {'graph': graph, 'inits': inits, 'times': times, 'a': a, 'b': b}
+    return plottools.SolutionWrapper(params_dict, X)
 
 
 if __name__ == '__main__':
