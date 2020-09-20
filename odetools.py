@@ -25,10 +25,13 @@ def generate_inits(graph, *, sep=100, noise='uniform', scale=10):  # do we actua
     return inits
 
 
-def odesolver(graph, inits, *, steps=1000, final=100, a, b):
+def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=.001):
     """
     Solves the aggregation equations with a prescribed interaction function and network structure.
 
+    :param tol: Tolerance level for adaptive half-step method.
+    :param bool adaptive: Flag specifying whether an adaptive or fixed timestep is taken. Ignore 'steps' and 'final'
+                          if true and use 'tol'.
     :param SBMGraph graph: A stochastic block object (in block_model.py)
     :param list inits: Initial conditions. Must match with the row/col dim of GRAPH.
     :param int steps: Number of fixed-width time steps taken.
@@ -75,16 +78,46 @@ def odesolver(graph, inits, *, steps=1000, final=100, a, b):
 
     compute_direction = np.frompyfunc(compute_direction, 2, 1)
 
-    for _ in times:
-        (MX1, MX2) = np.meshgrid(X0, X0)
-        dX_int = (1/n)*F(np.abs(MX1-MX2))*((MX1-MX2)/np.abs(MX1-MX2))*graph.adj  # not great, this throws error now
-        for idx in range(n):
-            dX_int[idx, idx] = 0
-        dX = np.sum(dX_int, axis=0)
-        X0 += h * dX
-        X = np.append(X, X0, axis=0)
+    if adaptive is False:
+        for _ in times:
+            (MX1, MX2) = np.meshgrid(X0, X0)
+            dX_int = (1/n)*F(np.abs(MX1-MX2))*((MX1-MX2)/np.abs(MX1-MX2))*graph.adj  # not great, this throws error now
+            for idx in range(n):
+                dX_int[idx, idx] = 0
+            dX = np.sum(dX_int, axis=0)
+            X0 += h * dX
+            X = np.append(X, X0, axis=0)
 
-    return plottools.SolutionWrapper(graph, inits, steps, final, a, b, X)
+    else:
+        t = 0
+        h = 1
+        times = [0]
+        while t < final:
+            (MX1, MX2) = np.meshgrid(X0, X0)
+            dX_int = (1/n)*F(np.abs(MX1-MX2))*((MX1-MX2)/np.abs(MX1-MX2))*graph.adj  # not great, this throws error now
+            for idx in range(n):
+                dX_int[idx, idx] = 0
+            dX = np.sum(dX_int, axis=0)
+            X1_full = X0 + h * dX
+
+            Xh = X0 + (h/2) * dX
+            (MX1, MX2) = np.meshgrid(Xh, Xh)
+            dX_int = (1/n)*F(np.abs(MX1-MX2))*((MX1-MX2)/np.abs(MX1-MX2))*graph.adj  # not great, this throws error now
+            for idx in range(n):
+                dX_int[idx, idx] = 0
+            dX = np.sum(dX_int, axis=0)
+            X1_half = Xh + (h/2) * dX
+
+            tau = X1_half - X1_full
+            conv_norm = np.max(np.abs(tau))
+            if conv_norm < tol:
+                X0 = X1_half + tau
+                t = times[-1]+h
+                times.append(t)
+                X = np.append(X, X0, axis=0)
+            h *= 0.9*np.sqrt(tol/conv_norm)
+
+    return plottools.SolutionWrapper(graph, inits, steps, final, a, b, X)  # TODO: this should return times, not steps
 
 
 if __name__ == '__main__':
