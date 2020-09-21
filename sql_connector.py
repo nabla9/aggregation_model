@@ -7,7 +7,12 @@ import traceback
 class SubstringFound(Exception):
     pass
 
-class SQLAccessError(Exception):
+
+class DatabaseError(Exception):
+    pass
+
+
+class SQLAccessError(DatabaseError):
     pass
 
 
@@ -33,6 +38,7 @@ class SQLConnector:
         cfg = read_config(cfgfile, 'SQL')
         self._connect = mysql.connect(**cfg)
         self._cursor = self._connect.cursor()
+        self._cfgfile = cfgfile  # Store cfgfile path in case of reconnect
 
     def __enter__(self):
         return self
@@ -41,6 +47,9 @@ class SQLConnector:
         self.close()
         if exc_type is not None:
             traceback.print_exception(exc_type, exc_value, tb)
+
+    def __str__(self):
+        return '%s object, connected: %s' % (self.__class__, self._connect.is_connected())
 
     def _flushresults(self):
         try:
@@ -51,6 +60,9 @@ class SQLConnector:
     def close(self):
         self._cursor.close()
         self._connect.close()
+
+    def reconnect(self):
+        self.__init__(cfgfile=self._cfgfile)
 
     def fetchall(self):
         self._cursor.fetchall()
