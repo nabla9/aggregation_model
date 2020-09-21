@@ -56,8 +56,12 @@ class SBMGraph:
     def __getitem__(self, item):
         return self._adj[item]
 
-    def __repr__(self):
+    def __str__(self):
         return str(self._adj)
+
+    def __repr__(self):
+        adj = self._adj.tolist()
+        return repr(adj)
 
     def __getattr__(self, name):
         return getattr(self._adj, name)
