@@ -65,7 +65,7 @@ class SQLConnector:
         self.__init__(cfgfile=self._cfgfile)
 
     def fetchall(self):
-        self._cursor.fetchall()
+        return self._cursor.fetchall()
 
     def record_data(self, params, data):
         self._flushresults()
@@ -84,6 +84,9 @@ class SQLConnector:
                   "VALUES (%s, '%s', %s, %s, %s, %s)"
                   % (sim_id, graph_str, n_nodes, n_comms, ker_a, ker_b))
         self._cursor.execute(insert)
+        insert = ("INSERT INTO simcomms (sim_id,comm_id,comm_nodes) VALUES "
+                  + ','.join(str((sim_id, comm_id, comm_nodes)) for comm_id, comm_nodes in enumerate(graph.comms)))
+        self._cursor.execute(insert)
         self._connect.commit()
 
         # Insert data into simdata table
@@ -92,7 +95,7 @@ class SQLConnector:
         nodes = np.arange(1, n_nodes+1)
         for idx, row in enumerate(data):
             times_ar = [times[idx]]*1000
-            data = zip(sim_id, nodes, times_ar, row)
+            data = zip(sim_id, nodes, times_ar, row)  # TODO: combine a few of these lines here, do like above
             data_str = [str(tup) for tup in data]
             commit_state = 'INSERT INTO simdata VALUES ' + ', '.join(data_str)
             self._cursor.execute(commit_state)

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import sql_connector as sqlc
 
 
 class SolutionWrapper:
@@ -60,3 +61,7 @@ class SolutionWrapper:
 
         fig.legend()
         return fig
+
+    def record_data(self):
+        with sqlc.SQLConnector() as dbconn:
+            dbconn.record_data(self.inputs, self.output)
