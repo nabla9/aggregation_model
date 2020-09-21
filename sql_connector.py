@@ -80,25 +80,22 @@ class SQLConnector:
         n_comms = len(graph.comms)
         ker_a = params['a']
         ker_b = params['b']
-        insert = ("INSERT INTO simulations (sim_id,graph,n_nodes,n_comms,ker_a,ker_b) "
-                  "VALUES (%s, '%s', %s, %s, %s, %s)"
-                  % (sim_id, graph_str, n_nodes, n_comms, ker_a, ker_b))
-        self._cursor.execute(insert)
-        insert = ("INSERT INTO simcomms (sim_id,comm_id,comm_nodes) VALUES "
-                  + ','.join(str((sim_id, comm_id, comm_nodes)) for comm_id, comm_nodes in enumerate(graph.comms)))
-        self._cursor.execute(insert)
+        query = ("INSERT INTO simulations (sim_id,graph,n_nodes,n_comms,ker_a,ker_b) "
+                 "VALUES (%s, '%s', %s, %s, %s, %s)" % (sim_id, graph_str, n_nodes, n_comms, ker_a, ker_b))
+        self._cursor.execute(query)
+
+        # Insert record into simcomms table
+        query = ("INSERT INTO simcomms (sim_id,comm_id,comm_nodes) VALUES "
+                 + ','.join(str((sim_id, comm_id, comm_nodes)) for comm_id, comm_nodes in enumerate(graph.comms)))
+        self._cursor.execute(query)
         self._connect.commit()
 
         # Insert data into simdata table
-        sim_id = [sim_id]*n_nodes
         times = params['times']
-        nodes = np.arange(1, n_nodes+1)
         for idx, row in enumerate(data):
-            times_ar = [times[idx]]*1000
-            data = zip(sim_id, nodes, times_ar, row)  # TODO: combine a few of these lines here, do like above
-            data_str = [str(tup) for tup in data]
-            commit_state = 'INSERT INTO simdata VALUES ' + ', '.join(data_str)
-            self._cursor.execute(commit_state)
+            query = ("INSERT INTO simdata VALUES "
+                     + ','.join(str((sim_id, node, times[idx], state)) for node, state in enumerate(row)))
+            self._cursor.execute(query)
         self._connect.commit()
 
     def get_graph(self, sim_id):
