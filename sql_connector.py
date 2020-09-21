@@ -1,7 +1,13 @@
 import mysql.connector as mysql
+import numpy as np
+import json
+import traceback
 
 
 class SubstringFound(Exception):
+    pass
+
+class SQLAccessError(Exception):
     pass
 
 
@@ -28,6 +34,20 @@ class SQLConnector:
         self._connect = mysql.connect(**cfg)
         self._cursor = self._connect.cursor()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):  # TODO: handle exceptions here
+        self.close()
+        if exc_type is not None:
+            traceback.print_exception(exc_type, exc_value, tb)
+
+    def _flushresults(self):
+        try:
+            self.fetchall()
+        except mysql.errors.InterfaceError:
+            pass
+
     def close(self):
         self._cursor.close()
         self._connect.close()
@@ -36,17 +56,14 @@ class SQLConnector:
         self._cursor.fetchall()
 
     def record_data(self, params, data):
-        try:
-            self.fetchall()
-        except mysql.errors.InterfaceError:
-            pass
+        self._flushresults()
         self._cursor.execute('SELECT MAX(sim_id) FROM simulations')
         (x,) = self.fetchall()[0]
 
         # Insert record into simulations table
         sim_id = x + 1 if x else 1
         graph = params['graph']
-        graph_str = str(graph).replace('\n ', ',')
+        graph_str = repr(graph).replace(".0, ", ",")
         n_nodes = graph.shape[0]
         n_comms = len(graph.comms)
         ker_a = params['a']
@@ -67,5 +84,15 @@ class SQLConnector:
             data_str = [str(tup) for tup in data]
             commit_state = 'INSERT INTO simdata VALUES ' + ', '.join(data_str)
             self._cursor.execute(commit_state)
-        self._connect.commit()  # Do I have to commit after each loop?
+        self._connect.commit()
 
+    def get_graph(self, sim_id):
+        self._flushresults()
+
+        try:
+            query = 'SELECT graph FROM simulations WHERE sim_id = %s' % sim_id
+            self._cursor.execute(query)
+            fetched_obj = self._cursor.fetchall()
+            return np.array(json.loads(fetched_obj[0][0]))
+        except IndexError:
+            raise SQLAccessError('No record in table with sim_id = %s' % sim_id)

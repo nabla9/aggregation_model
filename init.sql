@@ -7,7 +7,7 @@ CREATE TABLE simulations (
 	sim_id int NOT NULL AUTO_INCREMENT
 	, n_nodes int NOT NULL
 	, n_comms int NOT NULL
-	, graph varchar(10000) NOT NULL
+	, graph mediumtext NOT NULL
 	, ker_a float(2) NOT NULL
 	, ker_b float(2) NOT NULL
 	, notes varchar(1000)
