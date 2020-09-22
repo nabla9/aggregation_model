@@ -48,7 +48,6 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
 
     In Progress
     -----------
-    * TODO: Allow an adaptive time step with a tolerance mechanism for convergence.
     * TODO: Generalize code to extend to n>=2 dimensions.
     """
     inits = inits.reshape(-1)
@@ -70,7 +69,6 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
             return np.minimum(p1 * r + p2, 1 - r)
 
         return kernel
-
     F = make_kernel(a, b)
 
     def compute_direction(x1, x2):  # TODO: generalize to n-d
