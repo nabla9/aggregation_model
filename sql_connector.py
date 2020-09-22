@@ -2,6 +2,7 @@ import mysql.connector as mysql
 import numpy as np
 import json
 import traceback
+from block_model import SBMGraph
 
 
 class SubstringFound(Exception):
@@ -99,12 +100,23 @@ class SQLConnector:
         self._connect.commit()
 
     def get_graph(self, sim_id):
-        self._flushresults()
+        class SBMGraphFromDB(SBMGraph):
+            def __init__(self, adj_mat, comm):
+                self._adj = adj_mat
+                self._com = comm
 
+        self._flushresults()
         try:
             query = 'SELECT graph FROM simulations WHERE sim_id = %s' % sim_id
             self._cursor.execute(query)
             fetched_obj = self._cursor.fetchall()
-            return np.array(json.loads(fetched_obj[0][0]))
+            adj = np.array(json.loads(fetched_obj[0][0]))
+
+            query = 'SELECT comm_nodes FROM simcomms WHERE sim_id = %s' % sim_id
+            self._cursor.execute(query)
+            fetched_obj = self._cursor.fetchall()
+            comms = [num for (num,) in fetched_obj]
+
+            return SBMGraphFromDB(adj, comms)
         except IndexError:
             raise SQLAccessError('No record in table with sim_id = %s' % sim_id)
