@@ -1,7 +1,6 @@
 /* This file initializes the proper database structure for storing swarming simulation data. */ 
 
 CREATE DATABASE swarmsim;
-USE swarmsim;
 
 CREATE TABLE simulations (
 	sim_id int NOT NULL AUTO_INCREMENT
