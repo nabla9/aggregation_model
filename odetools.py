@@ -71,17 +71,9 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
         return kernel
     F = make_kernel(a, b)
 
-    def compute_direction(x1, x2):  # TODO: generalize to n-d
-        return 1 if x1 >= x2 else -1
-
-    compute_direction = np.frompyfunc(compute_direction, 2, 1)
-
     def take_step(pos, step):
         (MX1, MX2) = np.meshgrid(pos, pos)
-        dpos_int = (1/n)*F(np.abs(MX1-MX2))*((MX1-MX2)/np.abs(MX1-MX2))*graph.adj  # not great, this throws error now
-        for idx in range(n):
-            dpos_int[idx, idx] = 0
-        dpos = np.sum(dpos_int, axis=0)
+        dpos = np.sum((1/n)*F(np.abs(MX1-MX2))*np.sign(MX1-MX2)*graph.adj, axis=0)
         return pos + step * dpos
 
     if adaptive is False:
