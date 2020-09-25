@@ -25,6 +25,11 @@ def generate_inits(graph, *, sep=100, noise='uniform', scale=10):  # do we actua
     return inits
 
 
+def flatten_nd(array):
+    dims = [num for num in array.shape if num > 1]
+    return array.reshape(dims)
+
+
 def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=.001):
     """
     Solves the aggregation equations with a prescribed interaction function and network structure.
@@ -50,7 +55,7 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
     -----------
     * TODO: Generalize code to extend to n>=2 dimensions.
     """
-    inits = inits.reshape(-1)
+    inits = flatten_nd(inits)
     if not is_undirected(graph):
         raise NotImplementedError('Graph is directed')
     if not is_square(graph):
