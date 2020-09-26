@@ -14,24 +14,26 @@ def is_square(mat):
 
 
 def generate_inits(graph, *, dims=1, sep=100, noise='uniform', scale=10):  # do we actually need length here?
-    noise_dict = {'uniform': (lambda l: np.random.rand(l)-1/2)}
+    noise_dict = {'uniform': (lambda l: np.random.rand(*l)-1/2)}  # TODO: rewrite this to accept arbitrary args perhaps
     n_comms = len(graph.comms)
     n_nodes = np.sum(graph.comms)
-    inits = np.zeros(1, n_nodes, dims)
+    inits = np.zeros([1, n_nodes, dims])
 
     # generate inits spaced 'sep' apart by community, centered about 0, with noise
     inits[0, :, 0] = (np.array([pos for pos in range(n_comms) for times in range(graph.comms[pos])])*sep).astype('float')
-    inits += noise_dict[noise](1, n_nodes, dims)*scale
+    inits += noise_dict[noise]([1, n_nodes, dims])*scale
     inits -= inits.mean(axis=1)
     return inits
 
 
-# def flatten_nd(array):
-#    dims = [num for num in array.shape if num > 1]
-#    return array.reshape(dims)
+def flatten_nd(array):
+    # TODO: streamline this code
+    dims = sorted([num for num in array.shape if num > 1], reverse=True)
+    new_array = array.reshape(dims)
+    return new_array
 
 
-def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=.001):
+def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=.01):
     """
     Solves the aggregation equations with a prescribed interaction function and network structure.
 
@@ -57,15 +59,16 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
     * TODO: Generalize code to extend to n>=2 dimensions.
     """
     # inits = flatten_nd(inits)
+    n = graph.shape[0]
+    adj = graph.adj.reshape(*graph.shape, 1)
     if not is_undirected(graph):
         raise NotImplementedError('Graph is directed')
     if not is_square(graph):
         raise IndexError('Adjacency matrix is not square')
-    if graph.shape[0] != inits.shape[1]:
+    if n != inits.shape[1]:
         raise IndexError('Dim mismatch: initial conditions')
 
-    n = graph.shape[0]
-    X0 = np.array([inits]).astype('float')  # to be safe, casting error below if this were 'int'
+    X0 = np.array(inits).astype('float')  # to be safe, casting error below if this were 'int'
     X = X0.copy()
     times = np.linspace(0, final, steps)
     h = times[1] - times[0]
@@ -77,9 +80,23 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
         return kernel
     F = make_kernel(a, b)
 
+    # def take_step(pos, step):
+    #    (MX1, MX2) = np.meshgrid(pos, pos)
+    #    dpos = np.sum((1/n)*F(np.abs(MX1-MX2))*np.sign(MX1-MX2)*graph.adj, axis=0)
+    #    return pos + step * dpos
+
     def take_step(pos, step):
-        (MX1, MX2) = np.meshgrid(pos, pos)
-        dpos = np.sum((1/n)*F(np.abs(MX1-MX2))*np.sign(MX1-MX2)*graph.adj, axis=0)
+        n_nodes = pos.shape[1]
+        n_dims = pos.shape[2]
+        MX1 = np.zeros([n_nodes, n_nodes, n_dims])
+        MX2 = np.zeros([n_nodes, n_nodes, n_dims])
+        for idx in range(n_dims):
+            (MX1[:, :, idx], MX2[:, :, idx]) = np.meshgrid(pos[:, :, idx], pos[:, :, idx])
+        diffs = MX1-MX2
+        dist = np.sqrt(np.sum(diffs ** 2, axis=2, keepdims=True))
+        for idx in range(n_nodes):
+            dist[idx, idx] = 1
+        dpos = (1/n_nodes)*np.sum(F(dist)*diffs/dist*adj, axis=0)
         return pos + step * dpos
 
     if adaptive is False:
@@ -97,7 +114,8 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
             X1_half = take_step(Xh, h/2)
 
             tau = X1_half - X1_full
-            conv_norm = np.max(np.abs(tau))
+            conv_norm = np.max(np.sqrt(np.sum(tau ** 2, axis=2)))
+            # conv_norm = np.max(np.abs(tau))
             if conv_norm < tol:
                 X0 = X1_half + tau
                 t = times[-1]+h
@@ -110,9 +128,9 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
 
 
 if __name__ == '__main__':
-    C = [500, 500]
+    C = [100, 100]
     prob_array = np.array([[0.75, 0.15], [0.15, 0.75]])
     grp = block_model.SBMGraph(C, prob_array)
 
-    init = generate_inits(grp)
+    init = generate_inits(grp, dims=2)
     sol = odesolver(grp, init, a=0.5, b=0)

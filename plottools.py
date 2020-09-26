@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import sql_connector as sqlc
+import odetools
 
 
 class SolutionWrapper:
@@ -18,16 +19,21 @@ class SolutionWrapper:
     def __init__(self, params_dict, state_data):
         self.inputs = params_dict
         self.output = state_data
+        self._ndims = state_data.shape[2]
 
     def compute_center(self):
+        if self._ndims != 1:
+            raise NotImplementedError
         comm_endidx = np.cumsum(self.inputs['graph'].comms)
         for idx, num in enumerate(comm_endidx):
             prev = comm_endidx[idx-1] if idx >= 1 else 0
-            m_i = self.output[:, prev:comm_endidx[idx]].mean(axis=1).reshape(-1, 1)
+            m_i = self.output[:, prev:comm_endidx[idx], :].mean(axis=1, keepdims=True)
             M = m_i if idx == 0 else np.append(M, m_i, axis=1)
         return M
 
     def plot_state(self):
+        if self._ndims != 1:
+            raise NotImplementedError
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1, xlabel='time', ylabel='position', title='individual state data')
         comms = self.inputs['graph'].comms
@@ -44,7 +50,7 @@ class SolutionWrapper:
             """
             comm_endidx = np.cumsum(comms)
             prev = comm_endidx[k-1] if k > 0 else 0
-            axes.plot(self.output[:, prev:comm_endidx[k]], color=col)
+            axes.plot(self.output[:, prev:comm_endidx[k], 0], color=col)
 
             lines = axes.get_lines()
             lines[-1].set_label('community %s' % k)  # Set only one label in legend per community
@@ -56,7 +62,7 @@ class SolutionWrapper:
         M = self.compute_center()
         for com in range(len(comms)):
             plot_comm(ax, com, cmap(col_list[com]))
-            ax.plot(M[:, com], '--k')
+            ax.plot(M[:, com, 0], '--k')
         ax.get_lines()[-1].set_label('COM')
 
         fig.legend()
