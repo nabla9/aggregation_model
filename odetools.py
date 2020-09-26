@@ -13,21 +13,22 @@ def is_square(mat):
     return True if mat.ndim == 2 and mat.shape[0] == mat.shape[1] else False
 
 
-def generate_inits(graph, *, sep=100, noise='uniform', scale=10):  # do we actually need length here?
+def generate_inits(graph, *, dims=1, sep=100, noise='uniform', scale=10):  # do we actually need length here?
     noise_dict = {'uniform': (lambda l: np.random.rand(l)-1/2)}
     n_comms = len(graph.comms)
     n_nodes = np.sum(graph.comms)
+    inits = np.zeros(1, n_nodes, dims)
 
     # generate inits spaced 'sep' apart by community, centered about 0, with noise
-    inits = (np.array([pos for pos in range(n_comms) for times in range(graph.comms[pos])])*sep).astype('float')
-    inits += noise_dict[noise](n_nodes)*scale
-    inits -= inits.mean()
+    inits[0, :, 0] = (np.array([pos for pos in range(n_comms) for times in range(graph.comms[pos])])*sep).astype('float')
+    inits += noise_dict[noise](1, n_nodes, dims)*scale
+    inits -= inits.mean(axis=1)
     return inits
 
 
-def flatten_nd(array):
-    dims = [num for num in array.shape if num > 1]
-    return array.reshape(dims)
+# def flatten_nd(array):
+#    dims = [num for num in array.shape if num > 1]
+#    return array.reshape(dims)
 
 
 def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=.001):
@@ -55,12 +56,12 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
     -----------
     * TODO: Generalize code to extend to n>=2 dimensions.
     """
-    inits = flatten_nd(inits)
+    # inits = flatten_nd(inits)
     if not is_undirected(graph):
         raise NotImplementedError('Graph is directed')
     if not is_square(graph):
         raise IndexError('Adjacency matrix is not square')
-    if graph.shape[0] != inits.shape[0]:
+    if graph.shape[0] != inits.shape[1]:
         raise IndexError('Dim mismatch: initial conditions')
 
     n = graph.shape[0]
