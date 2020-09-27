@@ -126,9 +126,9 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
 
 
 if __name__ == '__main__':
-    C = [100, 100]
-    prob_array = np.array([[0.75, 0.15], [0.15, 0.75]])
+    C = [200, 200]
+    prob_array = np.array([[1, 1], [1, 1]])
     grp = block_model.SBMGraph(C, prob_array)
 
-    init = generate_inits(grp, dims=1)
-    sol = odesolver(grp, init, a=0.5, b=0)
+    init = generate_inits(grp, dims=2)
+    sol = odesolver(grp, init, final=4000, a=0, b=0.5)
