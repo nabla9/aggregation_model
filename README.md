@@ -6,7 +6,7 @@
 ![agg-img](https://raw.githubusercontent.com/nabla9/aggregation_model/master/.images/agg.png)
 
 ## The model
-The system of differential equations used by this package is
+The system of differential equations used by this package is given below. The *x_i* variable represents the *i*th node's state data, *N* is the total number of nodes, *e_{ij}* is (1 or 0) the existence of an edge between node *i* and node *j*, and *F* is a pairwise interaction kernel. Typically, *F(r)* is assumed to be positive for small *r* and negative for large *r*; that is, individuals that are close tend to push each other away, and individuals that are far apart tend to draw each other in.
 
 ![agg-eqn](https://raw.githubusercontent.com/nabla9/aggregation_model/readme/.images/eqn.png)
 
