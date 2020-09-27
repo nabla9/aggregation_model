@@ -8,7 +8,7 @@
 ## The model
 The system of differential equations used by this package is
 
-![agg-eqn](placeholder.png)
+![agg-eqn](https://raw.githubusercontent.com/nabla9/aggregation_model/readme/.images/eqn.png)
 
 ## Config and installation
 ### Config file
