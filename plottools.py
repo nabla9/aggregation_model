@@ -22,8 +22,6 @@ class SolutionWrapper:
         self._ndims = state_data.shape[2]
 
     def compute_center(self):
-        if self._ndims != 1:
-            raise NotImplementedError
         comm_endidx = np.cumsum(self.inputs['graph'].comms)
         for idx, num in enumerate(comm_endidx):
             prev = comm_endidx[idx-1] if idx >= 1 else 0
@@ -31,14 +29,20 @@ class SolutionWrapper:
             M = m_i if idx == 0 else np.append(M, m_i, axis=1)
         return M
 
-    def plot_state(self):
-        if self._ndims != 1:
-            raise NotImplementedError
+    def plot_state(self, time=None):
+        if self._ndims == 1:
+            return self._plot_state_1D()
+        elif self._ndims == 2:
+            return self._plot_state_2D(time)
+        else:
+            raise NotImplementedError('number of dimensions > 2')
+
+    def _plot_state_1D(self):
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1, xlabel='time', ylabel='position', title='individual state data')
         comms = self.inputs['graph'].comms
 
-        def plot_comm(axes, k, col):
+        def plot_comm_1D(axes, k, col):
             """
             A plotting method for state data **by community**.
 
@@ -61,13 +65,40 @@ class SolutionWrapper:
         # Compute COMs and plot with state data
         M = self.compute_center()
         for com in range(len(comms)):
-            plot_comm(ax, com, cmap(col_list[com]))
+            plot_comm_1D(ax, com, cmap(col_list[com]))
             ax.plot(M[:, com, 0], '--k')
         ax.get_lines()[-1].set_label('COM')
 
         fig.legend()
         return fig
+    
+    def _plot_state_2D(self, time):
+        if time is None:
+            raise ValueError('must pass numeric time value')
+        idx = np.argmin(np.abs(np.array(self.inputs['times']) - time))
+        time = self.inputs['times'][idx]
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, title='individual state data @ time=%s' % time)
+        comms = self.inputs['graph'].comms
+
+        def plot_comm_2D(axes, k, idx, col):
+            comm_endidx = np.cumsum(comms)
+            prev = comm_endidx[k - 1] if k > 0 else 0
+            axes.scatter(self.output[idx, prev:comm_endidx[k], 0], self.output[idx, prev:comm_endidx[k], 1],
+                         color=col, label='community %s' % k)
+
+        cmap = plt.get_cmap('jet')
+        col_list = np.linspace(0, 256, len(comms))
+        M = self.compute_center()
+        for com in range(len(comms)):
+            plot_comm_2D(ax, com, idx, cmap(col_list[com]))
+            ax.scatter(M[idx, com, 0], M[idx, com, 1], 50, color=cmap(col_list[com]), marker='x')
+
+        fig.legend()
+        return fig
 
     def record_data(self):
+        if self._ndims != 1:
+            raise NotImplementedError
         with sqlc.SQLConnector() as dbconn:
-            dbconn.record_data(self.inputs, self.output)
+            dbconn.record_data(self.inputs, self.output[:, :, 0])
