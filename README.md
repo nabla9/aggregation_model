@@ -3,7 +3,7 @@
 ## What is it? 
 **aggregation_model** is a package that provides a flexible numerical implementation of a particular aggregation model as explored in [von Brecht et al.](https://link.springer.com/article/10.1007/s10955-012-0680-x). This is an *individual-based model* that exhibits large-scale pattern formation, as in the below:
 
-![agg-img](placeholder.png)
+![agg-img](https://raw.githubusercontent.com/nabla9/aggregation_model/master/.images/agg.png)
 
 ## Config and installation
 ### Config file
