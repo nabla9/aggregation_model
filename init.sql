@@ -2,6 +2,9 @@
 
 CREATE DATABASE swarmsim;
 
+USE swarmsim;
+
+/* Parent table, contains unique identifier for simulation and most input parameters. */
 CREATE TABLE simulations (
 	sim_id int NOT NULL AUTO_INCREMENT
 	, n_nodes int NOT NULL
@@ -13,6 +16,7 @@ CREATE TABLE simulations (
 	, PRIMARY KEY (sim_id)
 );
 
+/* Child to "simulations," contains community data. */
 CREATE TABLE simcomms (
 	sim_id int NOT NULL 
 	, comm_id int NOT NULL
@@ -21,6 +25,7 @@ CREATE TABLE simcomms (
 	, FOREIGN KEY (sim_id) REFERENCES simulations(sim_id)
 );
 
+/* Child to "simulations," contains large amount of records (for each time step of each simulation). */
 CREATE TABLE simdata (
 	sim_id int NOT NULL
 	, node int NOT NULL

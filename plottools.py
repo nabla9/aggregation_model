@@ -30,6 +30,12 @@ class SolutionWrapper:
         return M
 
     def plot_state(self, time=None):
+        """
+        Plots state data (output) of simulation runs in 1D or 2D. Either calls _plot_state_1D or _plot_state_2D. These
+        sub-functions should not be called directly.
+        :param time: Plots a particular time slice for a 2D simulation run. Required in 2D, does nothing in 1D. 
+        :return fig: A handle to the current figure window.
+        """
         if self._ndims == 1:
             return self._plot_state_1D()
         elif self._ndims == 2:

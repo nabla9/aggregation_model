@@ -14,6 +14,17 @@ def is_square(mat):
 
 
 def generate_inits(graph, *, dims=1, sep=100, noise='uniform', scale=10):
+    """
+    Generates initial conditions (with noise) to use in the odesolver.
+
+    :param SBMGraph graph: An SBM graph generated from block_model.py. Community data is used to separate initial
+                           conditions by community and dimensions of adjacency matrix are used for correct init dims.
+    :param int dims: Number of spatial dimensions.
+    :param float sep: Separation between each community and nearest other community.
+    :param str noise: A given noise profile, selected from a dictionary. Allowable options: 'uniform'.
+    :param float scale: Width of noise profile.
+    :return ndarray: An array of dimensions (1,n_nodes,dims).
+    """
     noise_dict = {'uniform': (lambda l: np.random.rand(*l)-1/2)}
     n_comms = len(graph.comms)
     n_nodes = np.sum(graph.comms)
@@ -33,6 +44,14 @@ def flatten_nd(array):
 
 
 def make_kernel(p1, p2):
+    """
+    Returns an interaction kernel (also used in odesolver) with the prescribed values for each parameter.
+
+    Notes
+    -----
+    The input to the kernel function is always a pairwise distance (scalar) quantity. This is readily vectorized in code
+    of odesolver/take_step.
+    """
     def kernel(r):
         return np.minimum(p1 * r + p2, 1 - r)
     return kernel

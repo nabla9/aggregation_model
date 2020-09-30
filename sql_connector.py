@@ -18,6 +18,27 @@ class SQLAccessError(DatabaseError):
 
 
 def read_config(name, group):
+    """
+    Reads a grouped config file and returns a dictionary with each key=value line corresponding to a (key,value) item.
+
+    :param str name: Path to config file. A file name alone, by default, opens in current directory.
+    :param str group: A specific group to read in the config file.
+    :return dict: A dictionary containing each key=value line as items.
+
+    Examples
+    --------
+    Suppose my_config.cfg contains the following group:
+        [group1]
+        name = 'Adam'
+        hobby = 'Skiing'
+        age = 30
+
+    Then, read_config('my_config.cfg','group1') will return the dictionary {'name':'Adam','hobby':'Skiing','age':30}.
+
+    Notes
+    -----
+    This currently only works with string keys and values that are strings or integers.
+    """
     cfgdict = {}
     with open(name, 'r') as cfg:
         try:
@@ -35,6 +56,9 @@ def read_config(name, group):
 
 
 class SQLConnector:
+    """
+    A SQL connection wrapper. Offers functionality useful for recording and querying simulation data.
+    """
     def __init__(self, *, cfgfile='agg.conf'):
         cfg = read_config(cfgfile, 'SQL')
         self._connect = mysql.connect(**cfg)
@@ -69,6 +93,16 @@ class SQLConnector:
         return self._cursor.fetchall()
 
     def record_data(self, params, data):
+        """
+        A method to record simulation data (generated from odetools.odesolver) and inputs.
+
+        :param params: A set of input parameters (including graph).
+        :param data: Simulation state data (outputs).
+
+        Notes
+        -----
+        Database must first be initialized via the code in init.sql before this method will function properly.
+        """
         self._flushresults()
         self._cursor.execute('SELECT MAX(sim_id) FROM simulations')
         (x,) = self.fetchall()[0]
@@ -100,6 +134,18 @@ class SQLConnector:
         self._connect.commit()
 
     def get_graph(self, sim_id):
+        """
+        A method to recover the random adjacency matrix used to generate a particular simulation run.
+
+        :param int sim_id: An identifier for the particular simulation run.
+        :return SBMGraphFromDB:
+
+        Implementation
+        --------------
+        record_data stores a given adjacency matrix in JSON format; the original graph object can reconstructed from
+        this data. The "simulations" table is queried for the graph, and the "simcomms" table is queried for its
+        associated community information.
+        """
         class SBMGraphFromDB(SBMGraph):
             def __init__(self, adj_mat, comm):
                 self._adj = adj_mat
