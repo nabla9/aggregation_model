@@ -120,7 +120,7 @@ class SQLConnector:
         self._cursor.execute(query)
 
         # Insert record into simcomms table
-        query = ("INSERT INTO simcomms (sim_id,comm_id,comm_nodes) VALUES "
+        query = ("INSERT INTO communities (sim_id,comm_id,comm_nodes) VALUES "
                  + ','.join(str((sim_id, comm_id, comm_nodes)) for comm_id, comm_nodes in enumerate(graph.comms)))
         self._cursor.execute(query)
         self._connect.commit()
@@ -128,7 +128,7 @@ class SQLConnector:
         # Insert data into simdata table
         times = params['times']
         for idx, row in enumerate(data):
-            query = ("INSERT INTO simdata VALUES "
+            query = ("INSERT INTO statedata VALUES "
                      + ','.join(str((sim_id, node, times[idx], state)) for node, state in enumerate(row)))
             self._cursor.execute(query)
         self._connect.commit()
@@ -158,7 +158,7 @@ class SQLConnector:
             fetched_obj = self._cursor.fetchall()
             adj = np.array(json.loads(fetched_obj[0][0]))
 
-            query = 'SELECT comm_nodes FROM simcomms WHERE sim_id = %s' % sim_id
+            query = 'SELECT comm_nodes FROM communities WHERE sim_id = %s' % sim_id
             self._cursor.execute(query)
             fetched_obj = self._cursor.fetchall()
             comms = [num for (num,) in fetched_obj]
