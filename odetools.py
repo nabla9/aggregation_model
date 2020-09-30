@@ -13,8 +13,8 @@ def is_square(mat):
     return True if mat.ndim == 2 and mat.shape[0] == mat.shape[1] else False
 
 
-def generate_inits(graph, *, dims=1, sep=100, noise='uniform', scale=10):  # do we actually need length here?
-    noise_dict = {'uniform': (lambda l: np.random.rand(*l)-1/2)}  # TODO: rewrite this to accept arbitrary args perhaps
+def generate_inits(graph, *, dims=1, sep=100, noise='uniform', scale=10):
+    noise_dict = {'uniform': (lambda l: np.random.rand(*l)-1/2)}
     n_comms = len(graph.comms)
     n_nodes = np.sum(graph.comms)
     inits = np.zeros([1, n_nodes, dims])
@@ -27,10 +27,15 @@ def generate_inits(graph, *, dims=1, sep=100, noise='uniform', scale=10):  # do 
 
 
 def flatten_nd(array):
-    # TODO: streamline this code
     dims = sorted([num for num in array.shape if num > 1], reverse=True)
     new_array = array.reshape(dims)
     return new_array
+
+
+def make_kernel(p1, p2):
+    def kernel(r):
+        return np.minimum(p1 * r + p2, 1 - r)
+    return kernel
 
 
 def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=.01):
@@ -53,10 +58,6 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
     --------------
     Equations are evolved via forward Euler with a fixed time step. Kernel function as defined in von Brecht et al.
     (2013).
-
-    In Progress
-    -----------
-    * TODO: Generalize code to extend to n>=2 dimensions.
     """
     n = graph.shape[0]
     adj = graph.adj.reshape(*graph.shape, 1)
@@ -71,18 +72,7 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
     X = X0.copy()
     times = np.linspace(0, final, steps)
     h = times[1] - times[0]
-
-    def make_kernel(p1, p2):
-        def kernel(r):
-            return np.minimum(p1 * r + p2, 1 - r)
-
-        return kernel
     F = make_kernel(a, b)
-
-    # def take_step(pos, step):
-    #    (MX1, MX2) = np.meshgrid(pos, pos)
-    #    dpos = np.sum((1/n)*F(np.abs(MX1-MX2))*np.sign(MX1-MX2)*graph.adj, axis=0)
-    #    return pos + step * dpos
 
     def take_step(pos, step):
         n_nodes = pos.shape[1]
@@ -92,10 +82,15 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
         for idx in range(n_dims):
             (MX1[:, :, idx], MX2[:, :, idx]) = np.meshgrid(pos[:, :, idx], pos[:, :, idx])
         diffs = MX1-MX2
-        dist = np.sqrt(np.sum(diffs ** 2, axis=2, keepdims=True))
-        for idx in range(n_nodes):
-            dist[idx, idx] = 1
-        dpos = (1/n_nodes)*np.sum(F(dist)*diffs/dist*adj, axis=0)
+
+        # 1-D specific optimization
+        if n_dims == 1:
+            dpos = np.sum((1/n_nodes)*F(np.abs(diffs))*np.sign(diffs)*adj, axis=0)
+        else:
+            dist = np.sqrt(np.sum(diffs ** 2, axis=2, keepdims=True))
+            for idx in range(n_nodes):
+                dist[idx, idx] = 1
+            dpos = (1/n_nodes)*np.sum(F(dist)*diffs/dist*adj, axis=0)
         return pos + step * dpos
 
     if adaptive is False:
@@ -126,9 +121,9 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
 
 
 if __name__ == '__main__':
-    C = [200, 200]
+    C = [100, 100]
     prob_array = np.array([[1, 1], [1, 1]])
     grp = block_model.SBMGraph(C, prob_array)
 
-    init = generate_inits(grp, dims=2)
-    sol = odesolver(grp, init, final=4000, a=0, b=0.5)
+    init = generate_inits(grp, dims=1)
+    sol = odesolver(grp, init, final=4000, a=0.5, b=0)
