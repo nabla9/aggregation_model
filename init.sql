@@ -17,21 +17,32 @@ CREATE TABLE simulations (
 );
 
 /* Child to "simulations," contains community data. */
-CREATE TABLE simcomms (
+CREATE TABLE communities (
 	sim_id int NOT NULL 
 	, comm_id int NOT NULL
 	, comm_nodes int NOT NULL
-	, UNIQUE(sim_id,comm_id)
+	, UNIQUE (sim_id,comm_id)
 	, FOREIGN KEY (sim_id) REFERENCES simulations(sim_id)
 );
 
+/* Child to "simulations," used to initialize simulation run plan. */
+CREATE TABLE runs (
+    sim_id int NOT NULL
+    , n_runs int NOT NULL
+    , p_inner float(2) NOT NULL
+    , p_outer float(2) NOT NULL
+    , done datetime NULL
+    , UNIQUE (sim_id, p_inner, p_outer)
+    , FOREIGN KEY (sim_id) REFERENCES simulations(sim_id)
+);
+
 /* Child to "simulations," contains large amount of records (for each time step of each simulation). */
-CREATE TABLE simdata (
+CREATE TABLE statedata (
 	sim_id int NOT NULL
+	, run_id int NOT NULL
 	, node int NOT NULL
 	, step_time float(2) NOT NULL 
 	, node_pos float(2) NOT NULL
-	, UNIQUE (node,step_time,node_pos)
-	, PRIMARY KEY (sim_id,node,step_time)
+	, UNIQUE (sim_id,run_id,node,step_time)
 	, FOREIGN KEY (sim_id) REFERENCES simulations(sim_id) 
 );
