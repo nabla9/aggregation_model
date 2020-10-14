@@ -86,13 +86,19 @@ class SQLConnector:
         self._cursor.close()
         self._connect.close()
 
+    def commit(self):
+        self._connect.commit()
+
+    def execute(self, query):
+        self._cursor.execute(query)
+
     def reconnect(self):
         self.__init__(cfgfile=self._cfgfile)
 
     def fetchall(self):
         return self._cursor.fetchall()
 
-    def record_data(self, params, data):
+    def record_data(self, params, data, sim_id=None, run_id=None):
         """
         A method to record simulation data (generated from odetools.odesolver) and inputs.
 
@@ -104,26 +110,37 @@ class SQLConnector:
         Database must first be initialized via the code in init.sql before this method will function properly.
         """
         self._flushresults()
-        self._cursor.execute('SELECT MAX(sim_id) FROM simulations')
-        (x,) = self.fetchall()[0]
+        if sim_id is None:
+            self._cursor.execute('SELECT MAX(sim_id) FROM simulations')
+            (x,) = self.fetchall()[0]
+            sim_id = x + 1 if x else 1
+        if run_id is None:
+            run_id = 1
 
         # Insert record into simulations table
-        sim_id = x + 1 if x else 1
-        graph = params['graph']
-        graph_str = repr(graph).replace(".0, ", ",")
-        n_nodes = graph.shape[0]
-        n_comms = len(graph.comms)
-        ker_a = params['a']
-        ker_b = params['b']
-        query = ("INSERT INTO simulations (sim_id,graph,n_nodes,n_comms,ker_a,ker_b) "
-                 "VALUES (%s, '%s', %s, %s, %s, %s)" % (sim_id, graph_str, n_nodes, n_comms, ker_a, ker_b))
-        self._cursor.execute(query)
+        self._cursor.execute("SELECT * FROM simulations WHERE sim_id = %s" % sim_id)
+        self.fetchall()
+        if self._cursor.rowcount == 0:
+            graph = params['graph']
+            n_nodes = graph.shape[0]
+            n_comms = len(graph.comms)
+            ker_a = params['a']
+            ker_b = params['b']
+            query = ("INSERT INTO simulations (sim_id,n_nodes,n_comms,ker_a,ker_b) "
+                     "VALUES (%s, '%s', %s, %s, %s, %s)" % (sim_id, graph_str, n_nodes, n_comms, ker_a, ker_b))
+            self._cursor.execute(query)
 
         # Insert record into simcomms table
-        query = ("INSERT INTO communities (sim_id,comm_id,comm_nodes) VALUES "
-                 + ','.join(str((sim_id, comm_id, comm_nodes)) for comm_id, comm_nodes in enumerate(graph.comms)))
-        self._cursor.execute(query)
-        self._connect.commit()
+        self._cursor.execute("SELECT * FROM simulations WHERE sim_id = %s" % sim_id)
+        self.fetchall()
+        if self._cursor.rowcount == 0:
+            query = ("INSERT INTO communities (sim_id,comm_id,comm_nodes) VALUES "
+                     + ','.join(str((sim_id, comm_id, comm_nodes)) for comm_id, comm_nodes in enumerate(graph.comms)))
+            self._cursor.execute(query)
+            self._connect.commit()
+
+        # Insert graph into graphs table
+        graph_str = repr(graph).replace(".0, ", ",")
 
         # Insert data into simdata table
         times = params['times']
@@ -133,11 +150,12 @@ class SQLConnector:
             self._cursor.execute(query)
         self._connect.commit()
 
-    def get_graph(self, sim_id):
+    def get_graph(self, sim_id, run_id=1):
         """
         A method to recover the random adjacency matrix used to generate a particular simulation run.
 
-        :param int sim_id: An identifier for the particular simulation run.
+        :param int sim_id: An identifier for the particular simulation.
+        :param int run_id: An identifier for the particular run.
         :return SBMGraphFromDB:
 
         Implementation
@@ -153,7 +171,7 @@ class SQLConnector:
 
         self._flushresults()
         try:
-            query = 'SELECT graph FROM simulations WHERE sim_id = %s' % sim_id
+            query = 'SELECT graph FROM graphs WHERE sim_id = %s AND run_id = %s' % (sim_id, run_id)
             self._cursor.execute(query)
             fetched_obj = self._cursor.fetchall()
             adj = np.array(json.loads(fetched_obj[0][0]))

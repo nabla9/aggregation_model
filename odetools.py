@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import plottools
 import block_model
+import sql_connector as sqlc
 
 
 # Sanity checks for graph inputs
@@ -137,6 +138,30 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
 
     params_dict = {'graph': graph, 'inits': inits, 'times': times, 'a': a, 'b': b}
     return plottools.SolutionWrapper(params_dict, X)
+
+
+def run_simulation(*, resume=False, n_runs, n_nodes, a, b, inner_probs, outer_probs):
+    # establish plan and link to database
+    p1, p2 = np.meshgrid(inner_probs, outer_probs)
+    prob_pairs = list(zip(p1.flatten(), p2.flatten()))
+    with sqlc.SQLConnector() as dbconn:
+        dbconn.execute("INSERT INTO simulations VALUES (%s,%s,%s,%s,%s,%s,NULL)" % (sim_id, n_runs, n_nodes, 2,
+                                                                                    a, b))
+        dbconn.execute("INSERT INTO communities VALUES ({0},1,{1}),({0},2,{1})".format(sim_id, n_nodes//2))
+        values = [str(tuple([sim_id, run])+pair) for pair in prob_pairs for run in range(1, n_runs+1)]
+        query = "INSERT INTO runs (sim_id,run_id,p_inner,p_outer) VALUES {}".format(','.join(values))
+        dbconn.execute(query)  # TODO: maybe add this into __exit__ method for sql_connector class
+        dbconn.commit()
+
+    # obtain plan from database
+    # run plan
+    comms = [n_nodes // 2, n_nodes - n_nodes // 2]
+    for p_in, p_out in prob_pairs:
+        graph = block_model.SBMGraph(comms, np.array([[p_in, p_out], [p_out, p_in]]))
+        inits = generate_inits(graph)
+        for run in range(n_runs):
+            solution = odesolver(graph, inits, a=a, b=b)
+            # record data here
 
 
 if __name__ == '__main__':
