@@ -30,11 +30,11 @@ CREATE TABLE communities (
 /* Child to "simulations," used to initialize simulation run plan. */
 CREATE TABLE runs (
     sim_id int NOT NULL
-    , run_id int NOT NULL
+    , run_id int NOT NULL AUTO_INCREMENT
     , p_inner decimal(3,2) NOT NULL
     , p_outer decimal(3,2) NOT NULL
     , done datetime NULL
-    , PRIMARY KEY (sim_id,run_id,p_inner,p_outer)
+    , PRIMARY KEY (run_id)
     , FOREIGN KEY (sim_id)
         REFERENCES simulations(sim_id)
         ON DELETE CASCADE
@@ -51,6 +51,9 @@ CREATE TABLE statedata (
 	, FOREIGN KEY (sim_id)
 	    REFERENCES simulations(sim_id)
 	    ON DELETE CASCADE
+	, FOREIGN KEY (run_id)
+	    REFERENCES runs(run_id)
+	    ON DELETE CASCADE
 );
 
 /* Parent to "statedata," stores graph data per simulation run */
@@ -63,7 +66,7 @@ CREATE TABLE graphs (
     , FOREIGN KEY (sim_id)
         REFERENCES simulations(sim_id)
         ON DELETE CASCADE
-    , FOREIGN KEY (sim_id,run_id,p_inner,p_outer)
-        REFERENCES runs(sim_id,run_id,p_inner,p_outer)
+    , FOREIGN KEY (run_id)
+        REFERENCES runs(run_id)
         ON DELETE CASCADE
 );

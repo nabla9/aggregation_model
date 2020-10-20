@@ -154,14 +154,22 @@ def run_simulation(*, resume=False, n_runs, n_nodes, a, b, inner_probs, outer_pr
         dbconn.commit()
 
     # obtain plan from database
+    with sqlc.SQLConnector() as dbconn:
+        dbconn.execute("SELECT MAX(sim_id) FROM runs WHERE done IS NULL")
+        (sim_id,) = dbconn.fetchall()[0]
+        dbconn.execute("SELECT run_id,p_inner,p_outer FROM runs WHERE sim_id = %s AND done IS NULL", (sim_id,))
+        results = dbconn.fetchall()
+    run_params = [(int(run), float(p_in), float(p_out)) for run, p_in, p_out in results]
     # run plan
     comms = [n_nodes // 2, n_nodes - n_nodes // 2]
-    for p_in, p_out in prob_pairs:
+    for run_id, p_in, p_out in prob_pairs:
         graph = block_model.SBMGraph(comms, np.array([[p_in, p_out], [p_out, p_in]]))
         inits = generate_inits(graph)
-        for run in range(n_runs):
-            solution = odesolver(graph, inits, a=a, b=b)
-            # record data here
+        solution = odesolver(graph, inits, a=a, b=b)
+        with sqlc.SQLConnector() as dbconn:
+            dbconn.record_data(solution.inputs, solution.output[:, :, 0], sim_id, run_id)
+            dbconn.execute("UPDATE runs SET done = CURRENT_TIMESTAMP() WHERE run_id = %s", run_id)
+            dbconn.commit()
 
 
 if __name__ == '__main__':

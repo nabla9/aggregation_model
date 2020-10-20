@@ -114,8 +114,6 @@ class SQLConnector:
             self._cursor.execute('SELECT MAX(sim_id) FROM simulations')
             (x,) = self.fetchall()[0]
             sim_id = x + 1 if x else 1
-        if run_id is None:
-            run_id = 1
 
         # Insert record into simulations table
         self._cursor.execute("SELECT * FROM simulations WHERE sim_id = %s" % sim_id)
@@ -127,11 +125,19 @@ class SQLConnector:
             ker_a = params['a']
             ker_b = params['b']
             query = ("INSERT INTO simulations (sim_id,n_nodes,n_comms,ker_a,ker_b) "
-                     "VALUES (%s, '%s', %s, %s, %s, %s)" % (sim_id, graph_str, n_nodes, n_comms, ker_a, ker_b))
+                     "VALUES (%s, %s, %s, %s, %s)" % (sim_id, n_nodes, n_comms, ker_a, ker_b))
             self._cursor.execute(query)
 
+        # Insert record into runs table if necessary
+        if run_id is None:
+            query = "INSERT INTO runs (sim_id,p_inner,p_outer,done) VALUES (%s,-1,-1,CURRENT_TIMESTAMP())"
+            self._cursor.execute(query, (sim_id,))
+            self._connect.commit()
+            self._cursor.execute('SELECT run_id FROM runs WHERE sim_id = %s', (sim_id,))
+            (run_id,) = self.fetchall()[0]
+
         # Insert record into simcomms table
-        self._cursor.execute("SELECT * FROM simulations WHERE sim_id = %s" % sim_id)
+        self._cursor.execute("SELECT * FROM communities WHERE sim_id = %s" % sim_id)
         self.fetchall()
         if self._cursor.rowcount == 0:
             query = ("INSERT INTO communities (sim_id,comm_id,comm_nodes) VALUES "
@@ -141,12 +147,15 @@ class SQLConnector:
 
         # Insert graph into graphs table
         graph_str = repr(graph).replace(".0, ", ",")
+        query = "INSERT INTO graphs SELECT sim_id,run_id,p_inner,p_outer,%s FROM runs WHERE run_id = %s"
+        self._cursor.execute(query, (graph_str, run_id))
+        self._connect.commit()
 
         # Insert data into simdata table
         times = params['times']
         for idx, row in enumerate(data):
             query = ("INSERT INTO statedata VALUES "
-                     + ','.join(str((sim_id, node, times[idx], state)) for node, state in enumerate(row)))
+                     + ','.join(str((sim_id, run_id, node, times[idx], state)) for node, state in enumerate(row)))
             self._cursor.execute(query)
         self._connect.commit()
 
