@@ -121,7 +121,7 @@ class SQLConnector:
             sim_id = x + 1 if x else 1
 
         # Insert record into simulations table
-        self.execute("SELECT * FROM simulations WHERE sim_id = %s", sim_id)
+        self.execute("SELECT * FROM simulations WHERE sim_id = %s", (sim_id,))
         self.fetchall()
         if self._cursor.rowcount == 0:
             graph = params['graph']
