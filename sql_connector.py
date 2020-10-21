@@ -89,8 +89,11 @@ class SQLConnector:
     def commit(self):
         self._connect.commit()
 
-    def execute(self, query):
-        self._cursor.execute(query)
+    def execute(self, query, params=None):
+        self._cursor.execute(query, params)
+
+    def executemany(self, query, params_list):
+        self._cursor.executemany(query, params_list)
 
     def reconnect(self):
         self.__init__(cfgfile=self._cfgfile)
@@ -113,12 +116,12 @@ class SQLConnector:
         """
         self._flushresults()
         if sim_id is None:
-            self._cursor.execute('SELECT MAX(sim_id) FROM simulations')
+            self.execute('SELECT MAX(sim_id) FROM simulations')
             (x,) = self.fetchall()[0]
             sim_id = x + 1 if x else 1
 
         # Insert record into simulations table
-        self._cursor.execute("SELECT * FROM simulations WHERE sim_id = %s" % sim_id)
+        self.execute("SELECT * FROM simulations WHERE sim_id = %s", sim_id)
         self.fetchall()
         if self._cursor.rowcount == 0:
             graph = params['graph']
@@ -126,41 +129,39 @@ class SQLConnector:
             n_comms = len(graph.comms)
             ker_a = params['a']
             ker_b = params['b']
-            query = ("INSERT INTO simulations (sim_id,n_nodes,n_comms,ker_a,ker_b) "
-                     "VALUES (%s, %s, %s, %s, %s)" % (sim_id, n_nodes, n_comms, ker_a, ker_b))
-            self._cursor.execute(query)
+            query = "INSERT INTO simulations (sim_id,n_nodes,n_comms,ker_a,ker_b) VALUES (%s, %s, %s, %s, %s)"
+            self.execute(query, (sim_id, n_nodes, n_comms, ker_a, ker_b))
 
         # Insert record into runs table if necessary
         if run_id is None:
             query = "INSERT INTO runs (sim_id,p_inner,p_outer,done) VALUES (%s,-1,-1,CURRENT_TIMESTAMP())"
-            self._cursor.execute(query, (sim_id,))
-            self._connect.commit()
-            self._cursor.execute('SELECT run_id FROM runs WHERE sim_id = %s', (sim_id,))
+            self.execute(query, (sim_id,))
+            self.commit()
+            self.execute('SELECT run_id FROM runs WHERE sim_id = %s', (sim_id,))
             (run_id,) = self.fetchall()[0]
 
         # Insert record into simcomms table
-        self._cursor.execute("SELECT * FROM communities WHERE sim_id = %s" % sim_id)
+        self.execute("SELECT * FROM communities WHERE sim_id = %s" % sim_id)
         self.fetchall()
         if self._cursor.rowcount == 0:
             query = ("INSERT INTO communities (sim_id,comm_id,comm_nodes) VALUES "
                      + ','.join(str((sim_id, comm_id, comm_nodes)) for comm_id, comm_nodes in enumerate(graph.comms)))
             self._cursor.execute(query)
-            self._connect.commit()
+            self.commit()
 
         # Insert graph into graphs table
         graph = params['graph']
         graph_str = repr(graph).replace(".0, ", ",")
         query = "INSERT INTO graphs SELECT sim_id,run_id,p_inner,p_outer,%s FROM runs WHERE run_id = %s"
-        self._cursor.execute(query, (graph_str, run_id))
-        self._connect.commit()
+        self.execute(query, (graph_str, run_id))
 
         # Insert data into simdata table
         times = params['times']
         for idx, row in enumerate(data):
             query = ("INSERT INTO statedata VALUES "
                      + ','.join(str((sim_id, run_id, node, times[idx], state)) for node, state in enumerate(row)))
-            self._cursor.execute(query)
-        self._connect.commit()
+            self.execute(query)
+        self.commit()
 
     def get_graph(self, sim_id, run_id=1):
         """
@@ -184,13 +185,13 @@ class SQLConnector:
         self._flushresults()
         try:
             query = 'SELECT graph FROM graphs WHERE sim_id = %s AND run_id = %s' % (sim_id, run_id)
-            self._cursor.execute(query)
-            fetched_obj = self._cursor.fetchall()
+            self.execute(query)
+            fetched_obj = self.fetchall()
             adj = np.array(json.loads(fetched_obj[0][0]))
 
             query = 'SELECT comm_nodes FROM communities WHERE sim_id = %s' % sim_id
-            self._cursor.execute(query)
-            fetched_obj = self._cursor.fetchall()
+            self.execute(query)
+            fetched_obj = self.fetchall()
             comms = [num for (num,) in fetched_obj]
 
             return SBMGraphFromDB(adj, comms)

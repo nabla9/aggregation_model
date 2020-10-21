@@ -141,28 +141,40 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
 
 
 def run_simulation(*, resume=False, n_runs, n_nodes, a, b, inner_probs, outer_probs):
+    """
+    Run simulation on a grid of inner/outer probabilities and record data in SQL table.
+
+    :param resume: A flag indicating whether or not the most recent unfinished record in SQL table should be completed.
+    :param n_runs: Number of runs per probability pair.
+    :param n_nodes: Number of nodes to generate graph from.
+    :param a: kernel parameter a.
+    :param b: kernel parameter b.
+    :param inner_probs: A sequence of inner probabilities for graph generation.
+    :param outer_probs: A sequence of outer probabilities for graph generation.
+    """
     # establish plan and link to database
-    p1, p2 = np.meshgrid(inner_probs, outer_probs)
-    prob_pairs = list(zip(p1.flatten(), p2.flatten()))
-    with sqlc.SQLConnector() as dbconn:
-        dbconn.execute("SELECT MAX(sim_id) FROM simulations")
-        (x,) = dbconn.fetchall()[0]
-        sim_id = x+1 if x else 1
-        dbconn.execute("INSERT INTO simulations VALUES (%s,%s,%s,%s,%s,%s,NULL)" % (sim_id, n_runs, n_nodes, 2,
-                                                                                    a, b))
-        dbconn.execute("INSERT INTO communities VALUES ({0},1,{1}),({0},2,{1})".format(sim_id, n_nodes//2))
-        # values = [str(tuple([sim_id, run])+pair) for pair in prob_pairs for run in range(1, n_runs+1)]
-        # query = "INSERT INTO runs (sim_id,p_inner,p_outer) VALUES {}".format(','.join(values))
-        query = "INSERT INTO runs (sim_id,p_inner,p_outer) VALUES ({},%s,%s)".format(sim_id)
-        for run in range(n_runs):
-            dbconn._cursor.executemany(query, prob_pairs)  # TODO: maybe add this into __exit__ method for sql_connector class
-            dbconn.commit()
+    if not resume:
+        p1, p2 = np.meshgrid(inner_probs, outer_probs)
+        prob_pairs = list(zip(p1.flatten(), p2.flatten()))
+        with sqlc.SQLConnector() as dbconn:
+            dbconn.execute("SELECT MAX(sim_id) FROM simulations")
+            (x,) = dbconn.fetchall()[0]
+            sim_id = x+1 if x else 1
+            dbconn.execute("INSERT INTO simulations VALUES (%s,%s,%s,%s,%s,%s,NULL)" % (sim_id, n_runs, n_nodes, 2,
+                                                                                        a, b))
+            dbconn.execute("INSERT INTO communities VALUES ({0},1,{1}),({0},2,{1})".format(sim_id, n_nodes//2))
+            # values = [str(tuple([sim_id, run])+pair) for pair in prob_pairs for run in range(1, n_runs+1)]
+            # query = "INSERT INTO runs (sim_id,p_inner,p_outer) VALUES {}".format(','.join(values))
+            query = "INSERT INTO runs (sim_id,p_inner,p_outer) VALUES ({},%s,%s)".format(sim_id)
+            for run in range(n_runs):
+                dbconn.executemany(query, prob_pairs)
+                dbconn.commit()
 
     # obtain plan from database
     with sqlc.SQLConnector() as dbconn:
         dbconn.execute("SELECT MAX(sim_id) FROM runs WHERE done IS NULL")
         (sim_id,) = dbconn.fetchall()[0]
-        dbconn._cursor.execute("SELECT run_id,p_inner,p_outer FROM runs WHERE sim_id = %s AND done IS NULL", (sim_id,))
+        dbconn.execute("SELECT run_id,p_inner,p_outer FROM runs WHERE sim_id = %s AND done IS NULL", (sim_id,))
         results = dbconn.fetchall()
     run_params = [(int(run), float(p_in), float(p_out)) for run, p_in, p_out in results]
     # run plan
@@ -173,7 +185,7 @@ def run_simulation(*, resume=False, n_runs, n_nodes, a, b, inner_probs, outer_pr
         solution = odesolver(graph, inits, a=a, b=b)
         with sqlc.SQLConnector() as dbconn:
             dbconn.record_data(solution.inputs, solution.output[:, :, 0], sim_id, run_id)
-            dbconn._cursor.execute("UPDATE runs SET done = CURRENT_TIMESTAMP() WHERE run_id = %s", (run_id,))
+            dbconn.execute("UPDATE runs SET done = CURRENT_TIMESTAMP() WHERE run_id = %s", (run_id,))
             dbconn.commit()
 
 
