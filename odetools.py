@@ -145,30 +145,35 @@ def run_simulation(*, resume=False, n_runs, n_nodes, a, b, inner_probs, outer_pr
     p1, p2 = np.meshgrid(inner_probs, outer_probs)
     prob_pairs = list(zip(p1.flatten(), p2.flatten()))
     with sqlc.SQLConnector() as dbconn:
+        dbconn.execute("SELECT MAX(sim_id) FROM simulations")
+        (x,) = dbconn.fetchall()[0]
+        sim_id = x+1 if x else 1
         dbconn.execute("INSERT INTO simulations VALUES (%s,%s,%s,%s,%s,%s,NULL)" % (sim_id, n_runs, n_nodes, 2,
                                                                                     a, b))
         dbconn.execute("INSERT INTO communities VALUES ({0},1,{1}),({0},2,{1})".format(sim_id, n_nodes//2))
-        values = [str(tuple([sim_id, run])+pair) for pair in prob_pairs for run in range(1, n_runs+1)]
-        query = "INSERT INTO runs (sim_id,run_id,p_inner,p_outer) VALUES {}".format(','.join(values))
-        dbconn.execute(query)  # TODO: maybe add this into __exit__ method for sql_connector class
-        dbconn.commit()
+        # values = [str(tuple([sim_id, run])+pair) for pair in prob_pairs for run in range(1, n_runs+1)]
+        # query = "INSERT INTO runs (sim_id,p_inner,p_outer) VALUES {}".format(','.join(values))
+        query = "INSERT INTO runs (sim_id,p_inner,p_outer) VALUES ({},%s,%s)".format(sim_id)
+        for run in range(n_runs):
+            dbconn._cursor.executemany(query, prob_pairs)  # TODO: maybe add this into __exit__ method for sql_connector class
+            dbconn.commit()
 
     # obtain plan from database
     with sqlc.SQLConnector() as dbconn:
         dbconn.execute("SELECT MAX(sim_id) FROM runs WHERE done IS NULL")
         (sim_id,) = dbconn.fetchall()[0]
-        dbconn.execute("SELECT run_id,p_inner,p_outer FROM runs WHERE sim_id = %s AND done IS NULL", (sim_id,))
+        dbconn._cursor.execute("SELECT run_id,p_inner,p_outer FROM runs WHERE sim_id = %s AND done IS NULL", (sim_id,))
         results = dbconn.fetchall()
     run_params = [(int(run), float(p_in), float(p_out)) for run, p_in, p_out in results]
     # run plan
     comms = [n_nodes // 2, n_nodes - n_nodes // 2]
-    for run_id, p_in, p_out in prob_pairs:
+    for run_id, p_in, p_out in run_params:
         graph = block_model.SBMGraph(comms, np.array([[p_in, p_out], [p_out, p_in]]))
         inits = generate_inits(graph)
         solution = odesolver(graph, inits, a=a, b=b)
         with sqlc.SQLConnector() as dbconn:
             dbconn.record_data(solution.inputs, solution.output[:, :, 0], sim_id, run_id)
-            dbconn.execute("UPDATE runs SET done = CURRENT_TIMESTAMP() WHERE run_id = %s", run_id)
+            dbconn._cursor.execute("UPDATE runs SET done = CURRENT_TIMESTAMP() WHERE run_id = %s", (run_id,))
             dbconn.commit()
 
 

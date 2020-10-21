@@ -104,6 +104,8 @@ class SQLConnector:
 
         :param params: A set of input parameters (including graph).
         :param data: Simulation state data (outputs).
+        :param int sim_id: A specified sim_id to insert records into correct place in SQL table.
+        :param int run_id: A specified run_id.
 
         Notes
         -----
@@ -146,6 +148,7 @@ class SQLConnector:
             self._connect.commit()
 
         # Insert graph into graphs table
+        graph = params['graph']
         graph_str = repr(graph).replace(".0, ", ",")
         query = "INSERT INTO graphs SELECT sim_id,run_id,p_inner,p_outer,%s FROM runs WHERE run_id = %s"
         self._cursor.execute(query, (graph_str, run_id))
