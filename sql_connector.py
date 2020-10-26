@@ -51,7 +51,15 @@ def read_config(name, group):
                     break
                 arg = line.split('=')
                 arg = [thing.strip() for thing in arg]
-                cfgdict[arg[0]] = arg[1] if not arg[1].isdigit() else int(arg[1])  # TODO: make this work with decimals
+                # Try to read value as int/float if possible, otherwise accept as string
+                if arg[1].isdigit():
+                    val = int(arg[1])
+                else:
+                    try:
+                        val = float(arg[1])
+                    except ValueError:
+                        val = arg[1]
+                cfgdict[arg[0]] = val
     return cfgdict
 
 
