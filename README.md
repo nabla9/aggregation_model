@@ -25,17 +25,20 @@ Required packages are in *requirements.txt*; these can be installed by running `
 
 The commands in the provided file *init.sql* should be run once; these schema create the `swarmsim` database and its associated tables: 
 1. **simulations**, a parent table that contains fields for initial data from each simulation run;
-2. **sim_comms**, a child table that stores community data;
-3. **simdata**, another child table that stores the many-dimensional simulation state data.
+1. **communities**, a child table that stores community data;
+1. **runs**, a child table that stores per-run probabilities for each simulation group;
+1. **statedata**, another child table that stores the many-dimensional simulation state data;
+1. **graphs**, a child table for per-run graph data.
 
 ## Main components
 There are several components of this package: 
 1. **block_model.py**, a module that offers a function for creating a stochastic block adjacency matrix and a class to properly wrap this matrix to feed into the other modules; 
-2. **odetools.py**, a module that provides a function for generating initial conditions with added noise sampled from various random distributions and houses the logic for evolving the system of differential equations;
-3. **plottools.py**, a module that wraps the output of *odetools* and supplements it with methods that compute centers of mass from the data, plot state data by community, and call functions to record this data in a SQL database for future processing;
-4. **sql_connector.py**, an interface for *mysql-connector-python* that provides methods for easy reading of relevant data and writing of state data to a SQL database.
+1. **odetools.py**, a module that provides a function for generating initial conditions with added noise sampled from various random distributions and houses the logic for evolving the system of differential equations;
+1. **plottools.py**, a module that wraps the output of *odetools* and supplements it with methods that compute centers of mass from the data, plot state data by community, and call functions to record this data in a SQL database for future processing;
+1. **sql_connector.py**, an interface for *mysql-connector-python* that provides methods for easy reading of relevant data and writing of state data to a SQL database.
 
-## Example
+## Examples
+### General functions
 The module **odetools.py** can be run as a script to generate initial conditions and evolve the system of differential equations for a random graph: 
 
 	if __name__ == '__main__':
@@ -53,4 +56,15 @@ computes each community's center of mass over time and assigns it to M. Addition
 
 	plot_state(time)
 
-can be used to plot (by community) the particles' state data at time *t*. *Note*: if the system of equations is evolved in 1D, `plot_state()` returns a graph of particle data for **all** time *t*. 
+can be used to plot (by community) the particles' state data at time *t*. *Note*: if the system of equations is evolved in 1D, `plot_state()` returns a graph of particle data for **all** time *t*.
+
+### Running a simulation 
+The module **odetools.py** contains a function `run_simulation` that uses many individual runs to span a grid of inner and outer probabilities. For example,
+
+    run_simulation(n_runs = 100, n_nodes = 100, a=0.5, b=0, inner_probs = [0.5,0.75,1], outer_probs = [0.6,0.7,0.8,0.9,1]
+    
+will cover the probability grid specified by `inner_probs` and `outer_probs`, where each probability pair has 100 individual runs from a network of 100 nodes (2 communities of 50 nodes each). 
+
+Due to being unable to hold this mass of data in memory all at once, it is expected the user has set up a SQL database from **init.sql**. The function automatically records simulation data in this structure. Incomplete past runs can be completed by using the `resume=True` flag; the most recent set of uncompleted runs are then finished. 
+
+

@@ -33,6 +33,7 @@ class SolutionWrapper:
         """
         Plots state data (output) of simulation runs in 1D or 2D. Either calls _plot_state_1D or _plot_state_2D. These
         sub-functions should not be called directly.
+
         :param time: Plots a particular time slice for a 2D simulation run. Required in 2D, does nothing in 1D. 
         :return fig: A handle to the current figure window.
         """
@@ -104,6 +105,9 @@ class SolutionWrapper:
         return fig
 
     def record_data(self):
+        """
+        Calls instance of SQLConnector to record simulation data in a SQL database.
+        """
         if self._ndims != 1:
             raise NotImplementedError
         with sqlc.SQLConnector() as dbconn:
