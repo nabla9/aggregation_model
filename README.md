@@ -20,8 +20,7 @@ The main config file of this package is *config.conf* (which should be renamed t
 	database = swarmsim
 	password = YOURPASS
 
-### Installation
-Required packages are in *requirements.txt*; these can be installed by running `pip3 install -r requirements.txt` (Python 3). 
+\ 
 
 The commands in the provided file *init.sql* should be run once; these schema create the `swarmsim` database and its associated tables: 
 1. **simulations**, a parent table that contains fields for initial data from each simulation run;
