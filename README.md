@@ -18,9 +18,7 @@ The main config file of this package is *config.conf* (which should be renamed t
 	host = localhost
 	port = 3306
 	database = swarmsim
-	password = YOURPASS
-
-\ 
+	password = YOURPASS 
 
 The commands in the provided file *init.sql* should be run once; these schema create the `swarmsim` database and its associated tables: 
 1. **simulations**, a parent table that contains fields for initial data from each simulation run;
