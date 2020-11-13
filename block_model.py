@@ -2,24 +2,20 @@ import numpy as np
 
 
 def create_block_model(comm_list, prob_array):
-    """
-    A simple function to create a stochastic block model adjacency matrix.
+    """Creates a stochastic block model adjacency matrix.
 
     :param list comm_list: A 1D list of individuals assigned to respective communities.
     :param np.ndarray prob_array: A 2D array of interconnection probabilities. P[i,j] is the probability
-                              of connection between individuals from comm i,j.
+        of connection between individuals from comm i,j.
     :return np.ndarray adj: A symmetric adjacency matrix of 0's and 1's corresponding to edges between individuals.
 
-    Implementation
-    --------------
-    The top half of the undirected adjacency matrix is sampled randomly. The lower half is populated by adding the
-    transpose. Diagonal entries (self-edges) are set to 0 by convention.
+    Implementation:
+        The top half of the undirected adjacency matrix is sampled randomly. The lower half is populated by adding the
+        transpose. Diagonal entries (self-edges) are set to 0 by convention.
 
-    Notes
-    --------------
-    The graph generated here naturally "hard codes" community structure -- groups where the density of edges between
-    members can differ significantly from the density of links with non-members.
-
+    Notes:
+        The graph generated here naturally "hard codes" community structure -- groups where the density of edges between
+        members can differ significantly from the density of links with non-members.
     """
     comm_idx = np.cumsum(comm_list)
     n_nodes = comm_idx[-1]
@@ -42,8 +38,7 @@ def create_block_model(comm_list, prob_array):
 
 
 class SBMGraph:
-    """
-    A wrapper for a graph structure (adjacency matrix).
+    """Wraps a graph structure (adjacency matrix).
 
     Can be indexed like a normal array and holds its generating information.
     """
