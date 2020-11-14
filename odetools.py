@@ -57,10 +57,11 @@ def make_kernel(p1, p2):
     return kernel
 
 
-def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=.01):
+def odesolver(graph, inits, *, steps=1000, final=1000, a, b, method='euler', adaptive=True, tol=.01, **options):
     """Solves the aggregation equations with a prescribed interaction function and network structure.
 
-    :param tol: Tolerance level for adaptive half-step method.
+    :param float tol: Tolerance level for adaptive half-step method.
+    :param str method: A choice of integration method. Defaults to forward Euler.
     :param bool adaptive: Flag specifying whether an adaptive or fixed timestep is taken. Ignore 'steps' and 'final'
         if true and use 'tol'.
     :param SBMGraph graph: A stochastic block object (in block_model.py)
@@ -75,19 +76,30 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
     Implementation:
         Equations are evolved via forward Euler with a fixed time step. Kernel function as defined in von Brecht et al.
         (2013).
-
-    In Progress:
-        * TODO: restructure function (sub-f forward_euler, calls take_step...)
     """
+    solvers = {
+        'euler': _forward_euler
+    }
+
     n = graph.shape[0]
-    adj = graph.adj.reshape(*graph.shape, 1)
     if not is_undirected(graph):
         raise NotImplementedError('Graph is directed')
     if not is_square(graph):
         raise IndexError('Adjacency matrix is not square')
     if n != inits.shape[1]:
         raise IndexError('Dim mismatch: initial conditions')
+    if method not in solvers:
+        raise KeyError('Integrator not found')
 
+    X, times = solvers[method](graph, inits, steps=steps, final=final,
+                               a=a, b=b, adaptive=adaptive, tol=tol, **options)
+
+    params_dict = {'graph': graph, 'inits': inits, 'times': times, 'a': a, 'b': b}
+    return plottools.SolutionWrapper(params_dict, X)
+
+
+def _forward_euler(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=.01, **options):
+    adj = graph.adj.reshape(*graph.shape, 1)
     X0 = np.array(inits).astype('float')  # to be safe, casting error below if this were 'int'
     X = X0.copy()
     times = np.linspace(0, final, steps)
@@ -136,8 +148,7 @@ def odesolver(graph, inits, *, steps=1000, final=1000, a, b, adaptive=True, tol=
                 X = np.append(X, X0, axis=0)
             h *= 0.9 * np.sqrt(tol / conv_norm)
 
-    params_dict = {'graph': graph, 'inits': inits, 'times': times, 'a': a, 'b': b}
-    return plottools.SolutionWrapper(params_dict, X)
+    return X, times
 
 
 def run_simulation(*, resume=False, n_runs, n_nodes, a, b, inner_probs, outer_probs):
